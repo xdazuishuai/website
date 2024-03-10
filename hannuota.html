@@ -1,0 +1,12 @@
+function hanoi(n, source, target, auxiliary) {
+  if (n === 1) {
+    console.log(`Move disk 1 from ${source} to${target}`);
+    return;
+  }
+  hanoi(n - 1, source, auxiliary, target);
+  console.log(`Move disk ${n} from${source} to ${target}`);
+  hanoi(n - 1, auxiliary, target, source);
+}
+
+// 测试代码
+hanoi(3, 'A', 'C', 'B');
