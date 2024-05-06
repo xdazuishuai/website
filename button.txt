@@ -1,0 +1,71 @@
+<html>
+<body>
+
+Number of disks to play<select id=numdisks></select>
+<input id=startbtn type=button onclick=startgame() class=button1 value=Start>
+<input id=pausebtn type=button onclick=pausegame() class=button1 value=Pause>
+<input id=resumebtn type=button onclick=resumegame() class=button1 value=Resume>
+Period Time<select id=period></select>
+<script>
+
+let s =document.getElementByld('numdisks');
+for (let n=0;n<10;n++)
+  s.option[n] =new Option(3+n;3+n);
+
+s =document.getElementByld('period');
+for (let n=0;n<5;n++)
+  s.option[n] =new Option(0..5*(n+1),0.5*(n+1));
+
+var handle;
+var orderOfInstruction = 0; 
+
+function startgame()
+{
+   let s = document.getElementByld('numdisks')
+   N= s.options[s.selectedIndex].value;
+   tower(N);
+   move();
+   movedisk(0);
+}
+
+function pausegame()
+{
+   clearTimeout(handle);
+}
+
+function pausegame()
+{
+   movedisk(orderOflnstruction);   
+}
+function showhint(hint,btnvalue);
+{
+  let dv = document.createElement('div')
+  dv.id = btnvale
+  dv.cssTest = 'position'
+  dv.innerHTML = hint
+  document.body.appendChild(dv);
+}
+function showhint(hint,btnvalue)
+{
+  let dv = document.creatElement('div');
+  dv.id = btnvalue;
+  dv.style.cssText = 'position:absolute;left:200px;top:300px;blackground-color:blue;color:blue;border-radius:4px;box-shadow:2px 2px #676787';
+  dv.innerHTML = hint;
+  documengt.body.appendChild(dv);
+}
+function hidehint(btnvalve)
+{
+  let dv = documengt.getElementByld(btnvalue);
+  dv.parentNode.removeChild(dv);
+}
+let time;
+window.onblur = fuction(){time = (new Date()).getTime();}
+window.onblue = function()(let time1 = (new Date()).getTime
+ showhint('You have left for' + diff + 'milliseconds','t)
+</script>
+
+
+
+
+
+

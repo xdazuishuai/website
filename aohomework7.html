@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8">
+    <title>汉诺塔</title>
+    <style type="text/css">
+        #container {width: 100%; height: 100%; background-color: #fff;text-align: center;}
+        #canvas {width: 1000px; height:600px; margin:0 auto; padding:0; border: 1px solid #f00;}
+    </style>
+
+</head>
+<body>
+    <div id="container">
+        <p><button class="btn" id="start_btn">开始</button> <button class="btn" id="reset_btn">重置</button></p>
+        <p>
+            <label for="speed">速度调整：</label>
+            <input type="range" id="speed" min="1" max="10" step="1" value="20" onchange="changeSpeed()">
+            <span id="labCurrentSpeed">当前速度：20</span>
+        </p>
+
+        <p>
+            <label for="numDisks">选择盘子数量：</label>
+            <select id="numDisks">
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5" selected>5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+        </p>
+    
+    <canvas id="canvas" width="1000" height="600">
+            
+        </canvas>
+    </div>
+</body>
+
+<script type="text/javascript">
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+
+    //一个简单的闭包实现计数器, 主要是为了给各个盘子命名用
+    function counterfun(){
+        var i = 0;
+        return function(){
+            i ++;
+            return i;
+        }
+    }
+
+    var counter = counterfun();
+
+    //柱子
+    var c1 = new column(250, 550, 'A柱');
+    var c2 = new column(500, 550, 'B柱');
+    var c3 = new column(750, 550, 'C柱');
+    let speed = 20;
+
+    //盘子
+    var pans = [];
+
+    //移动操作记录
+    var operations = []; //存放移动操作记录
+    var current_op = null; //当前操作
+    var current_pan = null; //当前做移动动画的盘子
+    var moving = false; //是否有盘子在做移动动画
+    var current_op_index = 0; //指向operations的指针
+
+    var start = false; //开始状态就更新位置.  非开始状态就不更新位置
+    document.getElementById('start_btn').onclick = function(e){
+        start = !start;
+        // 获取用户选择的盘子数量
+        var numDisks = document.getElementById('numDisks').value;
+      
+        // 根据用户选择的数量生成盘子
+        pans = [];
+        for (let i = numDisks; i > 0; i--) {
+            pans.push(new pan(i * 20));
+        }
+
+        // 将新的盘子压入c1柱子顶部
+        pans.forEach(function(pan){
+            c1.addPan(pan);
+        });
+
+
+        init();
+        window.requestAnimationFrame(main);
+    }
+
+    //重置按钮
+    document.getElementById('reset_btn').onclick = function(e){
+        start = false;
+        reset();
+    }
+    //设置速度
+    function changeSpeed() {
+        const speedInput = document.getElementById("speed");
+        speed = parseInt(speedInput.value);
+        document.getElementById("labCurrentSpeed").innerHTML="当前速度："+speed;
+    }
+
+    // 随机颜色函数
+    function randomRGBValue() {
+        return Math.floor(Math.random() * 256);
+    }
+
+    // 随机颜色函数
+    function randomColor() {
+        return `rgba(${randomRGBValue()}, ${randomRGBValue()}, ${randomRGBValue()}, 1)`;
+    }
+
+    //盘子构造函数
+    function pan(r)
+{
+        this.stage = 0; //当前动画状态 0:停止, 1:上升, 2:平移, 3:下降
+        this.x = 0; //位置坐标x
+        this.y = 0; //位置坐标y
+        this.color = randomColor(); //盘子颜色
+        this.r = r; //半径
+        this.h = 20; //厚度20
+        this.name = '盘'+ counter(); //盘子的名字标示
+        //绘制盘子函数
+    this.draw = function()
+{
+  ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.strokeStyle = "rgb(255,255,255)";
+    ctx.stroke();
+}
+
+        //移动到指定位置
+        this.moveTo = function(x, y){
+            this.x = x;
+            this.y = y;
+        }
+
+        //重置自身状体
+        this.reset = function(){
+            this.stage = 0;
+        }
+
+        //移动动画中更新自己位置的函数
+        this.moving = function(target, cbk=null){
+            switch  (this.stage){
+                case 0:
+                    //停止状态下 如果是处于 moving 就跳到下一阶段, 否则直接返回
+                    if(!moving)
+                    {
+                        return;
+                    }else{
+                        this.stage = 1;
+                    }
+                case 1:
+                    //上升阶段. y坐标不断减小, 到达最高点就进入下一阶段
+                    this.y -= speed
+                    if(this.y <= this.h)
+                    {
+                        this.y = this.h;
+                        this.stage = 2;
+                    }
+                    break;
+                case 2:
+                    //平移阶段. 移动方向为相对位置差.  如果移动方向反向 就说明平移该结束了, 进入下一阶段
+                    var direct = (this.x < target.x)?1:-1;
+                    this.x += direct * speed;
+                    var direct_2 = (this.x < target.x)?1:-1;
+                    if(direct != direct_2)
+                    {
+                        this.x = target.x;
+                        this.stage = 3;
+                    }
+                    break;
+                case 3:
+                    //下降阶段. y向到达目标柱子当前高度再加半个盘子高度就到位了. 加入到目标柱子执行回调.
+                    this.y += speed;
+                    if(this.y >= target.y - target.current_h - this.h/2)
+                    {
+                        target.addPan(this);
+                        this.stage = 0;
+                        moving = false;
+                        cbk && cbk();
+                    }
+                    break;
+
+            }
+        }
+
+    }
+
+    //柱子构造函数
+    function column(x, y, lab){
+        this.x = x;
+        this.y = y;
+        this.r = 15; //半径
+        this.h = 400; //高度
+        this.current_h = 0; //当前盘子高度
+        this.pans = [];
+        this.lab = lab;
+
+        //绘制函数
+        this.draw = function(){
+            // 绘制底盘  
+            ctx.beginPath();  
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); // 使用arc方法绘制圆形底盘  
+            ctx.strokeStyle = 'rgb(255,0,0)';  
+            ctx.lineWidth = 1; // 可以根据需要设置线宽  
+            ctx.stroke();  
+          
+            // 绘制圆柱侧面  
+            var sliceCount = 20; // 侧面线条的数量，决定了圆柱的平滑度  
+            var angleStep = Math.PI * 2 / sliceCount;  
+            for (var i = 0; i < sliceCount; i++) {  
+                var startAngle = i * angleStep;  
+                var endAngle = (i + 1) * angleStep;  
+          
+                // 计算线条的起始和结束点  
+                var startX = this.x + this.r * Math.cos(startAngle);  
+                var startY = this.y - this.h;  
+                var endX = this.x + this.r * Math.cos(endAngle);  
+                var endY = this.y;  
+          
+                // 绘制侧面线条  
+                ctx.beginPath();  
+                ctx.moveTo(startX, startY);  
+                ctx.lineTo(endX, endY);  
+                ctx.strokeStyle = 'rgb(0,0,0)'; // 线条颜色  
+                ctx.lineWidth = 5; // 线条宽度  
+                ctx.stroke();   
+            }  
+          
+            // 绘制标签  
+            ctx.textAlign = "center";  
+            ctx.font = "16px serif";  
+            ctx.fillText(this.lab, this.x, this.y + 20);  
+        }
+
+        this.addPan = function(pan){
+            pan.x = this.x;
+            pan.y = this.y - this.current_h - pan.h/2;
+            this.pans.push(pan);
+            this.current_h += pan.h;
+        }
+
+        this.popPan = function(){
+            if(this.pans.length <=0) return null;
+            var pan = this.pans.pop();
+            this.current_h -= pan.h;
+            return pan;
+        }
+    }
+
+    //绘制所有对象
+    function draw(){
+        var drawable = [c1, c2, c3];
+        drawable.forEach(function(item){
+            item.draw();
+        })
+        pans.forEach(function(pan){
+            pan.draw();
+        })
+    }
+
+    
+    /**
+    * 实现汉诺塔移动的主要递归函数. 
+    * 递归思路就是 如果需要把 source上的 num个盘子移动到 target上去. 可以先把source上的 num - 1个盘子移动helper上去, 
+    * 再把source上的最底下的盘子移动到target上去, 最后把helper上的 num - 1个盘子移动到 target上去
+    * 每次执行具体的操作 movePan 的时候都记录下源和目标, 在绘图的时候根据该操作记录来重现动画.
+    * source 源柱子, 
+    * num 从上到下数, 需要移动的盘子数量
+    * target 目标柱子
+    * helper 中转柱子
+    */
+    function take(source, num, target, helper)
+    {
+        if(num <=0){
+            return ;
+        }
+        if(num == 1){
+            movePan(source.popPan(), target);
+            operations.push([source, target]);
+        }else{
+            take(source, num-1, helper, target);
+            movePan(source.popPan(), target);
+            operations.push([source, target]);
+            take(helper, num-1, target, source);
+        }
+    }
+
+    //盘子移动到目标柱子
+    function movePan(pan, target){
+        target.addPan(pan); 
+        return;
+    }
+
+    //盘子移动动画执行完的回调
+    function moveCallbk(){
+        current_op = null;
+        current_pan = null;
+        moving = false;
+        current_op_index ++;
+    }
+
+    //更新每个对象的位置
+    function update(){
+        if(moving && current_pan!=null){
+            //如果有盘子处于运动中. 就继续更新其位置
+            current_pan.moving(current_op[1], moveCallbk);
+        }else{
+            //所有盘子都已经移动完毕就直接返回
+            if(current_op_index >= operations.length){
+                start = false;
+                return ;    
+            }else{
+                //否则就把当前操作取出来,执行
+                moving = true;
+                current_op = operations[current_op_index];
+                current_pan = current_op[0].popPan();
+                if(current_pan!=null){
+                    current_pan.moving(current_op[1], moveCallbk);
+                }
+            }
+        }
+
+    }
+
+
+    //重置所有对象状态
+    function reset(){
+        //清理所有柱子上的盘子
+        while(c2.popPan()){} 
+        while(c1.popPan()){}
+        while(c3.popPan()){}
+
+        //当前没有盘子动画在移动
+        moving = false;
+        //每个盘子重置自己的状态后, 加入到初始的A柱子上
+        pans.forEach(function(pan){
+            pan.reset(); 
+            c1.addPan(pan);
+        })
+        //当前操作指针指向头部
+        current_op_index = 0;
+    }
+
+    //初始化. 
+    function init(){
+        //盘子都加入到A柱上
+        pans.forEach(function(pan){
+            c1.addPan(pan);
+        })
+        
+        //执行递归主函数, 记录所有的移动操作
+        take(c1, c1.pans.length, c2, c3);
+
+        //重置所有的对象
+        reset();
+    }
+
+    //主函数. 更新各对象位置, 清理画布, 重绘
+    function main()
+    {
+        if(start){
+            update();
+        }
+        ctx.clearRect(0, 0, 1000, 600)
+        draw();
+        window.requestAnimationFrame(main);
+    }
+</script>
+</html>
